@@ -9,10 +9,23 @@ import numpy
 from sklearn.model_selection import train_test_split
 from collections import defaultdict
 
+#returns a string to show conditional probability --> i.e. sunny | yes
+def probString(valueOne, valueTwo):
+    result = str(valueOne) + " | " + str(valueTwo)
+    return result;
+
+
 ############################################## Main Loop ######################################
 running = True
 while (running):
-    #print("Hello world")
+    disclaimer = """
+    Disclaimer: If using the randomly generated data then the naive assumption will actually be true, all values are independant of one another.
+    That will probably result in a low accuracy. For example a high temperature rating won't mean anything. It would be by chance that 
+    a higher temperature (or a specific feature) would actually skew towards a specific classification. That being said the algorithm should work 
+    correctly for real datasets."""
+    print(disclaimer)
+    
+    print("P.S. It was taking to long to find a data set the worked.")
     
 
     # Generate random data because finding one is too difficult
@@ -26,7 +39,7 @@ while (running):
         occupied_options = ['yes', 'no']
 
     
-        numInstances = 1000
+        numInstances = 100      ###NOTE: How many rows to generate for the .csv###
         data = {
             'Outlook': [random.choice(outlook_options) for _ in range(numInstances)],
             'Temperature': [random.choice(temperature_options) for _ in range(numInstances)],
@@ -39,74 +52,43 @@ while (running):
         df = pd.DataFrame(data)
 
         # Save to a CSV file
-        df.to_csv('myDataset.csv', index=False)
+        df.to_csv('myDataset.csv', index=False) #Will create a .csv in the same folder as this program
 
 
     #Load .csv file     columns will have catergories with the right-most column being the target that the algorithm will be trying to classify
     #the first row will have the catergory's name
-    dataset = pd.read_csv('myDataset.csv')
-    #print(dataset.head())
-    
-
-
-    #a = dataset['Age']
-    #print(a)
+    dataset = pd.read_csv('myDataset.csv')          ###NOTE: Change to your specific .csv###
 
     #Split dataset, 80% training data, 20% for testing
     train, test = train_test_split(dataset, test_size=0.2)
-
-    # Separate features and labels
-    #features_train = train.iloc[:, :-1]     #Category data
-    #label_train = train.iloc[:, -1]         #Target/class: Yes or No
+    totalTestCases = len(test)
+    totalRows = len(train)
     
-    #features_test = test.iloc[:, :-1]       #Category data
-    #label_test = test.iloc[:, -1]           #Target/class: Yes or No
+    #print("train")
+    #print(train)
 
-    print("train")
-    print(train)
-    #print(features_train)
-
-    print("test")
-    print(test)
+    #print("test")
+    #print(test)
     
-    #classify using the Naive Bayes algorithm (should work for any amount of features and labels)
-    #Create an array to hold the priors
-    #priors = [label_train[Y] for Y in range(label_train)]
     
-    #Create an array to hold the conditional probabilities
-    #conditionalProbabilities = [features_train[X] for X in range(features_train) for Y in range(label_train)]
-
-    #print(priors)
-    
-    #print(conditionalProbabilities)
-
+    #Create 2 generic dictionaries that will keep a count of the classes (priors) and the count of conditional probabilities 
+    #Both the classifications and features could be any length
+    #e.g. How many "yes"'s were counted in the training set = priorDict[yes]
     priorsDict = defaultdict(int)
-    conditionalProbabilitiesDict = defaultdict(int)
+    conditionalProbabilitiesCountDict = defaultdict(int)
 
-    #foreach row of the train data
-    myCount = 0
+    #foreach row of the training data
     for row in train.iterrows():
         #print("Current Row: ")
         #print(row)
 
         #Get each feature's value. The second value in train/test contains all of the
-        #features and there values
-        #print("current occupied value: ", end='')
+        #features and their values as a tuple
         classValue = row[1].iloc[-1];   #gets the last column value for this row (which is the label/class)
-        #print(classValue) 
       
         # Increment the count for this classValue
         priorsDict[classValue] += 1
-    
-        #print(priorsDict)
-        #print(priorsDict['no'])    
-        #print(priorsDict['yes'])
-
-
-
-
-        #print("Columns in current row " + str(len(row[1])))
-        
+ 
 
         #Loop through all of the current rows column values, skipping the last value (the class/label)
         i = 0
@@ -114,48 +96,107 @@ while (running):
             featureValue = row[1].iloc[i]   
             #print(featureValue)
             
-            key = str(featureValue) + " | " + str(classValue)
+            key = probString(featureValue, classValue)
             #print(key)
 
             #increment the counter for the associated feature given that it's part of the above label
-            #i.e. P(sunny | yes) += 1 is updated/added to the dictionary
-            conditionalProbabilitiesDict[key] += 1
+            #i.e. count of (sunny | yes) += 1 is updated/added to the dictionary
+            conditionalProbabilitiesCountDict[key] += 1
             
             i += 1
-        
-        #print(conditionalProbabilitiesDict)
 
-        
-        #myCount += 1
-        #if (myCount == 10):
-            #break
-    print("-------------------------------------------")
-    print("Priors: ")
-    print(priorsDict)
+    #print("Observed training data")
+    #print("-------------------------------------------")
+    #print("Priors: ")
+    #print(priorsDict)
     
-    print("-------------------------------------------")
-    print("Cond. Prob.: ")
-    print(conditionalProbabilitiesDict)
+    #print("-------------------------------------------")
+    #print("Cond. Prob. Count: ")
+    #print(conditionalProbabilitiesCountDict)
     
-
-    #If any of the probabilities are 0 set them equal to 1 or something, because there is a chance that they can occur     
-
-
     
     #Compare against the test sets to see how well the algorithm performs
     #foreach instance/row in the test set
-        #determine the proability that it is one of the labels
-        #Cm(x) = argmax(...)
-        #numpy.argmax()
+    correctPredictions = 0
+    conditionalProbabilitiesDict = defaultdict(float)
+    unnormalizedDict = defaultdict(float)
+    normalizedDict = defaultdict(float)
+    for row in test.iterrows(): #the row would be x in Cm(x) = argmax(...)
+        #print("Current Test Row: ")
+        #print(row)
 
+        #Classify using the Naive Bayes algorithm (should work for any amount of features and labels)
+        realClassification = classValue = row[1].iloc[-1];
+    
+        #Loop through all of the current rows column values, skipping the last value (the class/label)
+        i = 0
+        while(i < (len(row[1]) - 1)):
+            featureValue = row[1].iloc[i]  
+            
+            #Calculate probability and store for later (for all of the possible classifications)
+            #P(sunny | yes) = (# of (sunny | yes)'s counted during training   /   # of yes's counted during training)
+            for classification in priorsDict:
+                keyConditional = probString(featureValue, classification)
+                keyClass = classification
+                conditionalProbabilitiesDict[keyConditional] += conditionalProbabilitiesCountDict[keyConditional] / priorsDict[classification]
+                
+                #Calculate un-normalized final probabilities
+                if (unnormalizedDict[classification] == 0):
+                    #first value
+                    unnormalizedDict[classification] = priorsDict[classification] / totalRows
+                else:
+                    #other values
+                    unnormalizedDict[classification] = unnormalizedDict[classification] * conditionalProbabilitiesDict[keyConditional]
+                
+            i += 1
+    
         #save the result for accuracy later
+        #print("Computed condtional probabilities: ")
+        #print(conditionalProbabilitiesDict)
+        
+        #print("Unnormailized final prob: ")
+        #print(unnormalizedDict)
+ 
 
-    #accuracy = accuracy_score(y_test, predictions)
-    #print(f'Test set accuracy: {accuracy * 100:.2f}%')
+        #Normalize the values
+        for classification in priorsDict:
+            denominator = 0
+            for prob in unnormalizedDict:
+                denominator += unnormalizedDict[prob]
+
+            normalizedDict[classification] = unnormalizedDict[classification] / denominator
+        
+        #print("normailized final prob: ")
+        #print(normalizedDict)     
+        
+        #Choose the highest probability   Cm(x) = argmax(...)
+        highest = 0
+        highestString = ""
+        for prob in normalizedDict:
+            if normalizedDict[prob] >= highest:
+                highest = normalizedDict[prob]
+                highestString = prob
+                
+
+
+        #print(highest)
+        #print(highestString)
+        
+        #verify if it was correct or not
+        if highestString == realClassification:
+            correctPredictions += 1
+            #print("correct prediction")
+
+        #break
+        
+    
+    accuracy = correctPredictions / totalTestCases
+    print("")
+    print(f'Test set accuracy: {accuracy * 100:.2f}%')
 
 
 
-
+    
 
 
 
